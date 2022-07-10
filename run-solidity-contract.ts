@@ -11,26 +11,6 @@ import {
   encodeFunction,
 } from "./helpers/tx-builder";
 
-const GREETER_SOL = `// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
-
-contract Greeter {
-    string greeting;
-
-    constructor(string memory _greeting) {
-        greeting = _greeting;
-    }
-
-    function setGreeting(string memory _greeting) public {
-        greeting = _greeting;
-    }
-
-    function greet() public view returns (string memory) {
-        return greeting;
-    }
-}
-`;
-
 const INITIAL_GREETING = "Hello, World!";
 const SECOND_GREETING = "Hola, Mundo!";
 
@@ -42,74 +22,6 @@ const block = Block.fromBlockData(
   { header: { extraData: Buffer.alloc(97) } },
   { common }
 );
-
-/**
- * This function creates the input for the Solidity compiler.
- *
- * For more info about it, go to https://solidity.readthedocs.io/en/v0.5.10/using-the-compiler.html#compiler-input-and-output-json-description
- *
- * Note: this example additionally needs the Solidity compiler `solc` package (out of EthereumJS
- * scope) being installed. You can do this (in this case it might make sense to install globally)
- * with `npm i -g solc`.
- */
-function getSolcInput() {
-  return {
-    language: "Solidity",
-    sources: {
-      "helpers/Greeter.sol": {
-        content: GREETER_SOL,
-      },
-      // If more contracts were to be compiled, they should have their own entries here
-    },
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 200,
-      },
-      evmVersion: "petersburg",
-      outputSelection: {
-        "*": {
-          "*": ["abi", "evm.bytecode"],
-        },
-      },
-    },
-  };
-}
-
-/**
- * This function compiles all the contracts in `contracts/` and returns the Solidity Standard JSON
- * output. If the compilation fails, it returns `undefined`.
- *
- * To learn about the output format, go to https://solidity.readthedocs.io/en/v0.5.10/using-the-compiler.html#compiler-input-and-output-json-description
- */
-function compileContracts({ compiler }: { compiler: ICompiler }) {
-  const input = getSolcInput();
-  const output = compiler.compile(input);
-
-  let compilationFailed = false;
-
-  if (output.errors) {
-    for (const error of output.errors) {
-      if (error.severity === "error") {
-        console.error(error.formattedMessage);
-        compilationFailed = true;
-      } else {
-        console.warn(error.formattedMessage);
-      }
-    }
-  }
-
-  if (compilationFailed) {
-    return undefined;
-  }
-
-  return output;
-}
-
-function getGreeterDeploymentBytecode(solcOutput: any): any {
-  return solcOutput.contracts["helpers/Greeter.sol"].Greeter.evm.bytecode
-    .object;
-}
 
 async function deployContract(
   vm: VM,
@@ -192,11 +104,7 @@ async function getGreeting(vm: VM, contractAddress: Address, caller: Address) {
   return results[0];
 }
 
-export type ICompiler = {
-  compile(input: any): any;
-};
-
-export async function run({ compiler }: { compiler: ICompiler }) {
+export async function run({ bytecode }: { bytecode: { object: Buffer } }) {
   const accountPk = Buffer.from(
     "e331b6d69882b4cb4ea581d88e0b604039a3de5967688d3dcffdd2270c0fd109",
     "hex"
@@ -208,23 +116,12 @@ export async function run({ compiler }: { compiler: ICompiler }) {
   console.log("Account: ", accountAddress.toString());
   await insertAccount(vm, accountAddress);
 
-  console.log("Compiling...");
-
-  const solcOutput = compileContracts({ compiler });
-  if (solcOutput === undefined) {
-    throw new Error("Compilation failed");
-  } else {
-    console.log("Compiled the contract");
-  }
-
-  const bytecode = getGreeterDeploymentBytecode(solcOutput);
-
   console.log("Deploying the contract...");
 
   const contractAddress = await deployContract(
     vm,
     accountPk,
-    bytecode,
+    bytecode.object,
     INITIAL_GREETING
   );
 
