@@ -1,9 +1,7 @@
 const webpack = require("webpack");
 
-module.exports = (env) => {
+module.exports = () => {
   return {
-    target: "node",
-    mode: env,
     entry: "./index.ts",
     output: {
       filename: "bundle.js",
@@ -16,11 +14,11 @@ module.exports = (env) => {
     resolve: {
       extensions: [".ts", ".js"],
       fallback: {
-        // crypto: require.resolve("crypto-browserify"),
-        // path: require.resolve("path-browserify"),
-        // stream: require.resolve("stream-browserify"),
-        // buffer: require.resolve("buffer/"),
-        // fs: false,
+        crypto: require.resolve("crypto-browserify"),
+        path: require.resolve("path-browserify"),
+        stream: require.resolve("stream-browserify"),
+        buffer: require.resolve("buffer/"),
+        fs: false,
       },
     },
     module: {
@@ -33,10 +31,10 @@ module.exports = (env) => {
       ],
     },
     plugins: [
-      // new webpack.ProvidePlugin({
-      //   process: "process/browser",
-      //   Buffer: ["buffer", "Buffer"],
-      // }),
+      new webpack.ProvidePlugin({
+        process: require.resolve("./platform.js"),
+        Buffer: ["buffer", "Buffer"],
+      }),
     ],
   };
 };
