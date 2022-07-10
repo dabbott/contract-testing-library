@@ -1,8 +1,16 @@
 // @ts-expect-error
 globalThis.self = globalThis;
 
+import { ContractFactory } from "ethers";
+import {
+  callFunction,
+  createAccount,
+  deployContract,
+  getDefaultPrivateKey,
+  initialize,
+} from "./dist";
+
 const solc = require("solc");
-const { run } = require("./dist/bundle");
 
 const GREETER_SOL = `// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
@@ -91,20 +99,66 @@ function compileContracts({ compiler }: { compiler: ICompiler }) {
   return output;
 }
 
-function getGreeterDeploymentBytecode(output: any): any {
-  return output.contracts["Greeter.sol"].Greeter.evm.bytecode;
+// async function main() {
+//   const compiler = {
+//     compile(input: any) {
+//       return JSON.parse(solc.compile(JSON.stringify(input)));
+//     },
+//   };
+
+//   const output = compiler.compile(getSolcInput());
+//   const {
+//     abi,
+//     evm: { bytecode },
+//   } = output.contracts["Greeter.sol"].Greeter;
+
+//   const contract = new ContractFactory(abi, bytecode);
+//   const tx = contract.getDeployTransaction("Hello, World!");
+
+//   await run({ deploymentData: tx.data as Buffer });
+// }
+
+function compile(input: any) {
+  return JSON.parse(solc.compile(JSON.stringify(input)));
 }
 
 async function main() {
-  const compiler = {
-    compile(input: any) {
-      return JSON.parse(solc.compile(JSON.stringify(input)));
-    },
-  };
+  // Compile
+  const output = compile(getSolcInput());
+  const {
+    abi,
+    evm: { bytecode },
+  } = output.contracts["Greeter.sol"].Greeter;
 
-  const output = compiler.compile(getSolcInput());
+  // Get deployment data
+  const contractFactory = new ContractFactory(abi, bytecode);
+  const deployTx = contractFactory.getDeployTransaction("Hello, World!");
 
-  await run({ bytecode: getGreeterDeploymentBytecode(output) });
+  const accountPrivateKey = getDefaultPrivateKey();
+  const accountAddress = createAccount(accountPrivateKey);
+  const vm = await initialize({ accountAddress });
+
+  const contractAddress = await deployContract(
+    vm,
+    accountPrivateKey,
+    deployTx.data as Buffer
+  );
+
+  const contract = contractFactory.attach(contractAddress.toString());
+
+  const greetFunction = await contract.interface.getFunction("greet");
+  const pop = await contract.populateTransaction["greet"]();
+
+  const result = await callFunction(
+    vm,
+    accountPrivateKey,
+    contractAddress,
+    pop.data!
+  );
+
+  let value = contract.interface.decodeFunctionResult(greetFunction, result);
+
+  console.log(value);
 }
 
 main();

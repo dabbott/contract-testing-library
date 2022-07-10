@@ -5,11 +5,7 @@ import { Address } from "@ethereumjs/util";
 import VM from "@ethereumjs/vm";
 import { defaultAbiCoder as AbiCoder, Interface } from "@ethersproject/abi";
 import { getAccountNonce, insertAccount } from "./helpers/account-utils";
-import {
-  buildTransaction,
-  encodeDeployment,
-  encodeFunction,
-} from "./helpers/tx-builder";
+import { buildTransaction, encodeFunction } from "./helpers/tx-builder";
 
 const INITIAL_GREETING = "Hello, World!";
 const SECOND_GREETING = "Hola, Mundo!";
@@ -23,20 +19,13 @@ const block = Block.fromBlockData(
   { common }
 );
 
-async function deployContract(
+export async function deployContract(
   vm: VM,
   senderPrivateKey: Buffer,
-  deploymentBytecode: Buffer,
-  greeting: string
+  deploymentData: Buffer
 ): Promise<Address> {
-  // Contracts are deployed by sending their deployment bytecode to the address 0
-  // The contract params should be abi-encoded and appended to the deployment bytecode.
-  const data = encodeDeployment(deploymentBytecode.toString("hex"), {
-    types: ["string"],
-    values: [greeting],
-  });
   const txData = {
-    data,
+    data: deploymentData,
     nonce: await getAccountNonce(vm, senderPrivateKey),
   };
 
@@ -81,6 +70,31 @@ async function setGreeting(
   }
 }
 
+export async function callFunction(
+  vm: VM,
+  senderPrivateKey: Buffer,
+  contractAddress: Address,
+  data: string
+) {
+  const txData = {
+    to: contractAddress,
+    data,
+    nonce: await getAccountNonce(vm, senderPrivateKey),
+  };
+
+  const tx = Transaction.fromTxData(buildTransaction(txData), { common }).sign(
+    senderPrivateKey
+  );
+
+  const result = await vm.runTx({ tx, block });
+
+  if (result.execResult.exceptionError) {
+    throw result.execResult.exceptionError;
+  }
+
+  return result.execResult.returnValue;
+}
+
 async function getGreeting(vm: VM, contractAddress: Address, caller: Address) {
   const sigHash = new Interface(["function greet()"]).getSighash("greet");
 
@@ -104,25 +118,38 @@ async function getGreeting(vm: VM, contractAddress: Address, caller: Address) {
   return results[0];
 }
 
-export async function run({ bytecode }: { bytecode: { object: Buffer } }) {
-  const accountPk = Buffer.from(
+export function getDefaultPrivateKey() {
+  return Buffer.from(
     "e331b6d69882b4cb4ea581d88e0b604039a3de5967688d3dcffdd2270c0fd109",
     "hex"
   );
+}
 
+export function createAccount(accountPrivateKey: Buffer) {
+  return Address.fromPrivateKey(accountPrivateKey);
+}
+
+export async function initialize({
+  accountAddress,
+}: {
+  accountAddress: Address;
+}) {
   const vm = await VM.create({ common });
-  const accountAddress = Address.fromPrivateKey(accountPk);
 
-  console.log("Account: ", accountAddress.toString());
   await insertAccount(vm, accountAddress);
 
-  console.log("Deploying the contract...");
+  return vm;
+}
+
+export async function run({ deploymentData }: { deploymentData: Buffer }) {
+  const accountPrivateKey = getDefaultPrivateKey();
+  const accountAddress = createAccount(accountPrivateKey);
+  const vm = await initialize({ accountAddress });
 
   const contractAddress = await deployContract(
     vm,
-    accountPk,
-    bytecode.object,
-    INITIAL_GREETING
+    accountPrivateKey,
+    deploymentData
   );
 
   console.log("Contract address:", contractAddress.toString());
@@ -138,7 +165,7 @@ export async function run({ bytecode }: { bytecode: { object: Buffer } }) {
 
   console.log("Changing greeting...");
 
-  await setGreeting(vm, accountPk, contractAddress, SECOND_GREETING);
+  await setGreeting(vm, accountPrivateKey, contractAddress, SECOND_GREETING);
 
   const greeting2 = await getGreeting(vm, contractAddress, accountAddress);
 

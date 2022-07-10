@@ -4,7 +4,7 @@ module.exports = () => {
   return {
     entry: "./index.ts",
     output: {
-      filename: "bundle.js",
+      filename: "index.js",
       library: {
         name: "SolidityVM",
         type: "umd",
@@ -26,7 +26,17 @@ module.exports = () => {
         {
           test: /\.tsx?$/,
           exclude: /node_modules/,
-          use: ["ts-loader"],
+          use: [
+            {
+              loader: "ts-loader",
+              options: {
+                compilerOptions: {
+                  declaration: true,
+                  declarationDir: "./dist",
+                },
+              },
+            },
+          ],
         },
       ],
     },
