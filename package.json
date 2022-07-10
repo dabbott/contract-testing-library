@@ -1,0 +1,33 @@
+{
+  "name": "vm-examples",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@ethereumjs/block": "4.0.0-beta.1",
+    "@ethereumjs/blockchain": "6.0.0-beta.1",
+    "@ethereumjs/common": "3.0.0-beta.1",
+    "@ethereumjs/evm": "1.0.0-beta.1",
+    "@ethereumjs/statemanager": "1.0.0-beta.1",
+    "@ethereumjs/trie": "5.0.0-beta.1",
+    "@ethereumjs/tx": "4.0.0-beta.1",
+    "@ethereumjs/util": "8.0.0-beta.1",
+    "@ethereumjs/vm": "6.0.0-beta.1",
+    "async-eventemitter": "^0.2.4",
+    "core-js-pure": "^3.0.1",
+    "debug": "^4.3.3",
+    "ethereum-cryptography": "^1.0.3",
+    "functional-red-black-tree": "^1.0.1",
+    "mcl-wasm": "^0.7.1",
+    "rlp": "4.0.0-beta.1",
+    "rustbn.js": "~0.2.0"
+  },
+  "author": "Devin Abbott",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^18.0.3"
+  }
+}
