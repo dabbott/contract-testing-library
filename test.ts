@@ -1,14 +1,7 @@
 // @ts-expect-error
 globalThis.self = globalThis;
 
-import { ContractFactory } from "ethers";
-import {
-  callFunction,
-  createAccount,
-  deployContract,
-  getDefaultPrivateKey,
-  initialize,
-} from "./dist";
+import { deploy } from "./dist";
 
 const solc = require("solc");
 
@@ -130,35 +123,11 @@ async function main() {
     evm: { bytecode },
   } = output.contracts["Greeter.sol"].Greeter;
 
-  // Get deployment data
-  const contractFactory = new ContractFactory(abi, bytecode);
-  const deployTx = contractFactory.getDeployTransaction("Hello, World!");
+  const contract = await deploy({ abi, bytecode, args: ["Hello, World!"] });
 
-  const accountPrivateKey = getDefaultPrivateKey();
-  const accountAddress = createAccount(accountPrivateKey);
-  const vm = await initialize({ accountAddress });
+  const result = await contract.call("greet");
 
-  const contractAddress = await deployContract(
-    vm,
-    accountPrivateKey,
-    deployTx.data as Buffer
-  );
-
-  const contract = contractFactory.attach(contractAddress.toString());
-
-  const greetFunction = await contract.interface.getFunction("greet");
-  const pop = await contract.populateTransaction["greet"]();
-
-  const result = await callFunction(
-    vm,
-    accountPrivateKey,
-    contractAddress,
-    pop.data!
-  );
-
-  let value = contract.interface.decodeFunctionResult(greetFunction, result);
-
-  console.log(value);
+  console.log(result);
 }
 
 main();
