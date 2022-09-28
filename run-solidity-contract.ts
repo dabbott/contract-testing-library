@@ -1,8 +1,8 @@
 import { Block } from "@ethereumjs/block";
-import Common, { Chain, Hardfork } from "@ethereumjs/common";
+import { Chain, Common, Hardfork } from "@ethereumjs/common";
 import { Transaction } from "@ethereumjs/tx";
 import { Address } from "@ethereumjs/util";
-import VM from "@ethereumjs/vm";
+import { VM } from "@ethereumjs/vm";
 import { Result } from "@ethersproject/abi";
 import { BytesLike } from "@ethersproject/bytes";
 import {

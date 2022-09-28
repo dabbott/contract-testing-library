@@ -1,5 +1,5 @@
 import { Account, Address } from "@ethereumjs/util";
-import VM from "@ethereumjs/vm";
+import { VM } from "@ethereumjs/vm";
 
 export const insertAccount = async (vm: VM, address: Address) => {
   const acctData = {
