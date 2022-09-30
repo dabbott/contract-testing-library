@@ -11,6 +11,11 @@ import {
   ContractInterface,
 } from "@ethersproject/contracts";
 import { getAccountNonce, insertAccount } from "./helpers/account-utils";
+import {
+  getContractVariable,
+  getContractVariables,
+  StorageLayout,
+} from "./helpers/storage-utils";
 import { buildTransaction } from "./helpers/tx-builder";
 
 const common = new Common({
@@ -97,11 +102,13 @@ export async function initialize({
 export async function deploy({
   abi,
   bytecode,
+  storageLayout,
   args = [],
 }: {
   abi: ContractInterface;
   bytecode: BytesLike | { object: string };
-  args: any[];
+  storageLayout?: StorageLayout;
+  args?: any[];
 }) {
   const contractFactory = new ContractFactory(abi, bytecode);
   const deployTx = contractFactory.getDeployTransaction(...args);
@@ -119,7 +126,19 @@ export async function deploy({
 
   const contract = contractFactory.attach(contractAddress.toString());
 
+  const getStorageAt = (key: string | Buffer) => {
+    if (typeof key === "string") {
+      if (key.startsWith("0x")) {
+        key = key.slice(2);
+      }
+      key = Buffer.from(key, "hex");
+    }
+
+    return vm.stateManager.getContractStorage(contractAddress, key);
+  };
+
   return {
+    address: contractAddress,
     call(name: string, ...args: any[]): Promise<Result> {
       return call({
         contract,
@@ -128,6 +147,34 @@ export async function deploy({
         accountPrivateKey,
         args,
       });
+    },
+    getVariable(variable: string) {
+      if (!storageLayout) {
+        throw new Error(
+          `Pass 'storageLayout' when deploying to access variable values.`
+        );
+      }
+
+      return getContractVariable({
+        getStorageAt,
+        storageLayout,
+        variable,
+      });
+    },
+    getVariables() {
+      if (!storageLayout) {
+        throw new Error(
+          `Pass 'storageLayout' when deploying to access variable values.`
+        );
+      }
+
+      return getContractVariables({
+        getStorageAt,
+        storageLayout,
+      });
+    },
+    dumpStorage() {
+      return vm.stateManager.dumpStorage(contractAddress);
     },
   };
 }
@@ -143,7 +190,7 @@ export async function call({
   name: string;
   vm: VM;
   accountPrivateKey: Buffer;
-  args: any[];
+  args?: any[];
 }) {
   const greetFunction = await contract.interface.getFunction(name);
   const populated = await contract.populateTransaction[name](...args);
